@@ -1,0 +1,182 @@
+\documentclass[a4paper,12pt]{article}
+\begin{document}
+
+\section{Introduction}
+背景　
+
+在hadoop 1.0和CDH3中新加上了kerberos安全机制来控制hadoop集群的访问权限。在之前的版本，都没有kerberos安全论证之说，默认集群是可靠的，值得信赖的。在mr和hdfs交互时都不需要认证。没有强有力的安全保障会使一些恶意用户恶意提交作业，篡改jobtracker状态，修改hdfs文件，甚至直接伪装成合法用户去修改Ｈadoop集群的状态来控制hadoop集群。当然任何系统都没有绝对安全之说，只有安全的级别高低之分。
+Kerberos可以将认证的密钥放到可靠的节点上，当集群运行时，集群内的节点使用密钥来认证。只有认证通过的节点才能加入到集群中来，流氓节点由于没有密钥信息而通不过验证，无法与集群内部的节点进行通信。防止了集群的恶意修改，保障了hadoop集群的安全运行。
+[编辑]　Hadoop Kerberos配置　
+
+在core-site.xml中配置如下参数。 　
+       <property>
+         <name>hadoop.security.authorization</name>
+         <value>true</value>
+         <description>Is service-level authorization enabled?</description>
+       </property>
+       <property>
+         <name>hadoop.rpc.protection</name>
+         <value>privacy</value>
+         <description>Possible values are authentication (no integrity, privacy)
+         </description>
+       </property>
+       <property>
+         <name>hadoop.security.authentication</name>
+         <value>kerberos</value>
+         <description>Possible values are simple (no authentication), and kerberos
+         </description>
+       </property>
+
+在hdfs-site.xml中配置如下参数。
+　
+        <property>
+         <name>dfs.https.address</name>
+         <value>namenodeHost:50470</value>
+        </property>
+        <property>
+         <name>dfs.https.port</name>
+         <value>50470</value>
+        </property>
+        <property>
+         <name>dfs.block.access.token.enable</name>
+         <value>true</value>
+        </property>
+        <property>
+         <name>dfs.namenode.keytab.file</name>
+         <value>/home/hadoop/hadoop/conf/hadoop.keytab</value>
+        </property>
+        <property>
+         <name>dfs.namenode.kerberos.principal</name>
+         <value>hadoop/_HOST@XIAONEI.OPI.COM</value>
+        </property>
+        <property>
+         <name>dfs.namenode.kerberos.https.principal</name>
+         <value>host/_HOST@XIAONEI.OPI.COM</value>
+        </property>
+        <property>
+          <name>dfs.datanode.data.dir.perm</name>
+          <value>755</value>        
+          <description>Permissions for the directories on on the local filesystem where
+          the DFS data node store its blocks. The permissions can either be octal or
+          symbolic.
+          </description>
+       　</property>
+       　<property>
+          <name>dfs.datanode.address</name>
+          <value>0.0.0.0:1004</value>
+       　</property>
+       　<property>
+          <name>dfs.datanode.http.address</name>
+          <value>0.0.0.0:1006</value>
+         </property>
+         <property>
+          <name>dfs.datanode.keytab.file</name>
+          <value>/home/hadoop/hadoop/conf/hadoop.keytab</value> 
+        </property>
+        <property>
+          <name>dfs.datanode.kerberos.principal</name>
+          <value>hadoop/_HOST@XIAONEI.OPI.COM</value>
+        </property>
+        <property>
+          <name>dfs.datanode.kerberos.https.principal</name>
+          <value>host/_HOST@XIAONEI.OPI.COM</value>
+        </property>
+在mapred-site.xml中配置如下参数。
+   <property>
+     <name>mapreduce.jobtracker.kerberos.principal</name>
+     <value>hadoop/_HOST@XIAONEI.OPI.COM</value>
+   </property>
+   <property>
+     <name>mapreduce.jobtracker.kerberos.https.principal</name>
+     <value>host/_HOST@XIAONEI.OPI.COM</value>
+   </property>
+   <property>
+     <name>mapreduce.jobtracker.keytab.file</name>
+     <value>/home/hadoop/hadoop/conf/hadoop.keytab</value>
+   </property>
+   <property>
+     <name>mapreduce.tasktracker.kerberos.principal</name>
+     <value>hadoop/_HOST@XIAONEI.OPI.COM</value>
+   </property>
+   <property>
+     <name>mapreduce.tasktracker.kerberos.https.principal</name>
+     <value>host/_HOST@XIAONEI.OPI.COM</value>
+   </property>
+   <property>
+     <name>mapreduce.tasktracker.keytab.file</name>
+     <value>/home/hadoop/hadoop/conf/hadoop.keytab</value>
+   </property>
+   <property>
+     <name>mapred.task.tracker.task-controller</name>
+     <value>org.apache.hadoop.mapred.DefaultTaskController</value>
+   </property>
+   <property>
+     <name>mapreduce.tasktracker.group</name>
+     <value>hadoop</value>
+   </property>
+[编辑] hadoop启动命令　
+
+hadoop@_HOST:~$ ~hadoop/hadoop/bin/hadoop-daemon.sh start namenode
+root@_HOST:~# ~hadoop/hadoop/bin/hadoop-daemon.sh start namenode
+hadoop@_HOST:~$ ~hadoop/hadoop/bin/hadoop-daemon.sh start jobtracker
+hadoop@_HOST:~$ ~hadoop/hadoop/bin/hadoop-daemon.sh start tasktracker
+[编辑] hadoop-１.0.3 fair-scheduler kerberos认证bug(提交任务时出的问题)　
+
+这个bug解决得比较曲折。在官方的bug网站上已经有了相应的bug fix。找出了最终的原因是ExecutorService的一种机制：ExecutorService可以产生若干个线程，但是不会同时生成（也就是说按需生成），因此在应该产生的时候就没有kerberos的相应的认证信息了。
+MAPREDUCE-4451 -- fairscheduler fail to init job with kerberos authentication configured
+[编辑] secure hbase　Kerberos配置　
+
+<property>
+        <name>hbase.regionserver.kerberos.principal</name>
+        <value>hbase/_HOST@XIAONEI.OPI.COM</value>
+</property>
+<property>
+        <name>hbase.regionserver.keytab.file</name>
+        <value>/home/hbase/hbase/conf/hdfs.keytab</value>
+</property>
+<property>
+        <name>hbase.master.kerberos.principal</name>
+        <value>hbase/_HOST@XIAONEI.OPI.COM</value>
+</property>
+<property>
+        <name>hbase.master.keytab.file</name>
+        <value>/home/hbase/hbase/conf/hdfs.keytab</value>
+</property>
+<property>
+        <name>hbase.security.authentication</name>
+        <value>kerberos</value>
+</property>
+<property>
+        <name>hbase.security.authorization</name>
+        <value>true</value>
+</property>
+<property>
+        <name>hbase.rpc.engine</name>
+        <value>org.apache.hadoop.hbase.ipc.SecureRpcEngine</value>
+</property>
+<property>
+        <name>hbase.rpc.protection</name>
+        <value>privacy</value>
+</property>
+[编辑] secure hbase启动命令　
+
+hbase@_HOST:~$ ~hbase/hbase/bin/hbase-daemon.sh start master
+hbase@_HOST:~$ ~hbase/hbase/bin/hbase-daemon.sh start regionserver
+[编辑] hbase表级别的安全控制coprocessor配置　
+
+<property>
+          <name>hbase.coprocessor.master.classes</name>
+          <value>org.apache.hadoop.hbase.security.access.AccessController</value>
+</property>
+<property>
+          <name>hbase.coprocessor.region.classes</name>
+          <value>org.apache.hadoop.hbase.security.token.TokenProvider,org.apache.hadoop.hbase.security.access.AccessController</value>
+</property>
+[编辑] hbase表权限命令　
+
+user_permission
+grant
+revoke
+
+
+\end{document}
